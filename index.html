@@ -17,7 +17,8 @@
             align-items: center;
             min-height: 100vh;
             margin: 0;
-            padding: 20px;
+            padding: 20px; /* 保持適當邊距 */
+            overflow-y: auto;
             /* 禁用文字反白選取功能 */
             -webkit-user-select: none; 
             -moz-user-select: none;
@@ -47,15 +48,28 @@
             background-color: #2c2a4a;
             border: 1px solid #4a4768;
             transition: transform 0.2s;
-        }
-
-        /* 響應式調整卡片寬度 */
-        .metronome-card {
             max-width: 420px;
             width: 100%;
+            /* 關鍵修正：允許卡片內部內容過長時滾動 */
+            overflow-y: auto;
+            /* 隱藏卡片內部的滾動條 (Chrome/Safari) */
+            scrollbar-width: none; /* Firefox */
+            -ms-overflow-style: none;  /* IE 10+ */
+        }
+        .metronome-card::-webkit-scrollbar { 
+            display: none;  /* Chrome/Safari */
         }
 
-        /* 當前節拍視覺指示燈 */
+        /* 應用程式主容器 (用於滑動) */
+        #app-wrapper {
+            max-width: 420px;
+            width: 100%;
+            /* 固定高度 */
+            height: 700px; 
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+        }
+
+        /* 節拍指示燈：使用 transition 讓閃爍更平滑 */
         .beat-indicator {
             transition: background-color 0.1s;
         }
@@ -76,6 +90,9 @@
             background-color: #2c2a4a; /* 暗色背景作為底圖 */
             border: 1px solid #4a4768;
             transition: all 0.15s ease; /* 讓背景變化更流暢 */
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         
         /* 視覺化數字的基底樣式 */
@@ -88,284 +105,413 @@
 </head>
 <body>
 
-<!-- 1. 節拍器主畫面 (App Container) -->
-<div id="app" class="metronome-card p-6 md:p-8 rounded-xl shadow-2xl text-center">
-    <!-- 標題 -->
-    <h1 class="text-3xl font-extrabold mb-6 text-[#9a7dff]">
-        🎵 數位節拍器
-    </h1>
+<!-- 應用程式主卡片容器 (包含多頁卡片) -->
+<div id="app-wrapper" class="overflow-hidden relative shadow-2xl rounded-xl">
+    <!-- 左側切換箭頭 -->
+    <button id="prevBtn" onclick="prevCard()" class="absolute left-0 top-1/2 -translate-y-1/2 z-10 p-2 text-white/70 hover:text-white transition-colors">
+        <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+    </button>
+    <!-- 右側切換箭頭 -->
+    <button id="nextBtn" onclick="nextCard()" class="absolute right-0 top-1/2 -translate-y-1/2 z-10 p-2 text-white/70 hover:text-white transition-colors">
+        <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+    </button>
 
-    <!-- 節拍顯示區 -->
-    <div class="mb-8">
-        <span id="bpmDisplay" class="text-7xl font-mono font-bold text-white transition-colors duration-200">
-            120
-        </span>
-        <div class="text-lg text-gray-400 mt-1">
-            BPM
-        </div>
-    </div>
-
-    <!-- BPM 控制區 -->
-    <div class="flex items-center justify-center space-x-4 mb-8">
-        <!-- 減少 BPM 按鈕 -->
-        <button onclick="changeBPM(-1)" class="metronome-button bg-[#6a5acd] hover:bg-[#5a4ba5] p-3 rounded-full text-2xl font-bold w-12 h-12 flex items-center justify-center">
-            −
-        </button>
+    <!-- 卡片內容容器 (進行水平移動的元素) -->
+    <div id="card-container" class="flex transition-transform duration-300 ease-in-out" style="width: 200%;">
         
-        <!-- BPM 輸入框 -->
-        <input type="number" id="bpmInput" value="120" min="40" max="240"
-               onchange="updateBPM(this.value)"
-               class="w-24 text-center text-3xl font-bold bg-[#4a4768] p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#9a7dff] transition-all duration-150 border border-[#6a5acd]">
+        <!-- 卡片 1: 節拍器主畫面 -->
+        <div id="card-1" class="metronome-card p-6 md:p-8 rounded-xl shadow-2xl text-center flex-shrink-0 flex flex-col" style="width: 50%; height: 700px;">
+            
+            <!-- 標題 -->
+            <h1 class="text-3xl font-extrabold mb-2 text-[#9a7dff] flex-shrink-0">
+                🎵 數位節拍器
+            </h1>
 
-        <!-- 增加 BPM 按鈕 -->
-        <button onclick="changeBPM(1)" class="metronome-button bg-[#6a5acd] hover:bg-[#5a4ba5] p-3 rounded-full text-2xl font-bold w-12 h-12 flex items-center justify-center">
-            ＋
-        </button>
-    </div>
-
-    <!-- 按鈕容器: Start/Stop & Drum Toggle & Fullscreen Lock -->
-    <div class="flex space-x-2 md:space-x-4 mb-6">
-        <!-- 鎖定全螢幕按鈕 (Eye Closed / Eye Open) -->
-        <button id="fullscreenLockToggle" onclick="toggleFullscreenLock()"
-                title="鎖定自動全螢幕 (F)"
-                class="metronome-button w-1/5 py-4 rounded-xl bg-[#4a4768] hover:bg-[#5a577d] focus:outline-none focus:ring-4 focus:ring-[#9a7dff] flex items-center justify-center">
-            <!-- SVG Icon Container (會動態注入 SVG) -->
-            <div id="fullscreenIconContainer" class="text-gray-400 transition-colors duration-150 w-7 h-7 flex items-center justify-center">
-                <!-- 初始圖示將由 JS 注入 -->
+            <!-- 節拍顯示區 -->
+            <div class="mb-4 flex-shrink-0">
+                <span id="bpmDisplay" class="text-7xl font-mono font-bold text-white transition-colors duration-200">
+                    120
+                </span>
+                <div class="text-lg text-gray-400 mt-1">
+                    BPM
+                </div>
             </div>
-        </button>
 
-        <!-- 開始/停止 按鈕 (調整為 w-3/5) -->
-        <button id="startButton" onclick="startStop()"
-                class="metronome-button w-3/5 py-4 text-xl font-bold rounded-xl bg-green-500 hover:bg-green-600 focus:outline-none focus:ring-4 focus:ring-green-700">
-            開始
-        </button>
-        <!-- Drum Mode Toggle (調整為 w-1/5) -->
-        <button id="drumModeToggle" onclick="toggleDrumMode()"
-                title="切換至鼓模式 (D)"
-                class="metronome-button w-1/5 py-4 rounded-xl bg-[#4a4768] hover:bg-[#5a577d] focus:outline-none focus:ring-4 focus:ring-[#9a7dff] flex items-center justify-center">
-            <!-- 使用者提供的 Lucide Drum 圖示 -->
-            <svg id="drumIcon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-400 transition-colors duration-150">
-                <path d="m2 2 8 8"/>
-                <path d="m22 2-8 8"/>
-                <ellipse cx="12" cy="9" rx="10" ry="5"/>
-                <path d="M7 13.4v7.9"/>
-                <path d="M12 14v8"/>
-                <path d="M17 13.4v7.9"/>
-                <path d="M2 9v8a10 5 0 0 0 20 0V9"/>
-            </svg>
-        </button>
+            <!-- BPM 控制區 -->
+            <div class="flex items-center justify-center space-x-4 mb-4 flex-shrink-0">
+                <!-- 減少 BPM 按鈕 -->
+                <button onclick="changeBPM(-1)" class="metronome-button bg-[#6a5acd] hover:bg-[#5a4ba5] p-3 rounded-full text-2xl font-bold w-12 h-12 flex items-center justify-center">
+                    −
+                </button>
+                
+                <!-- BPM 輸入框 -->
+                <input type="number" id="bpmInput" value="120" min="40" max="240"
+                       onchange="updateBPM(this.value)"
+                       class="w-24 text-center text-3xl font-bold bg-[#4a4768] p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#9a7dff] transition-all duration-150 border border-[#6a5acd]">
+
+                <!-- 增加 BPM 按鈕 -->
+                <button onclick="changeBPM(1)" class="metronome-button bg-[#6a5acd] hover:bg-[#5a4ba5] p-3 rounded-full text-2xl font-bold w-12 h-12 flex items-center justify-center">
+                    ＋
+                </button>
+            </div>
+
+            <!-- 按鈕容器: Fullscreen Lock, Start/Stop & Drum Toggle -->
+            <div class="flex space-x-2 mb-4 justify-center flex-shrink-0">
+                <!-- 鎖定全螢幕按鈕 -->
+                <button id="fullscreenLockToggle" onclick="toggleFullscreenLock()"
+                        title="鎖定自動全螢幕 (F)"
+                        class="metronome-button w-1/5 py-4 rounded-xl bg-[#4a4768] hover:bg-[#5a577d] focus:outline-none focus:ring-4 focus:ring-[#9a7dff] flex items-center justify-center">
+                    <div id="fullscreenIconContainer" class="text-gray-400 transition-colors duration-150 w-7 h-7 flex items-center justify-center">
+                        <!-- 初始圖示將由 JS 注入 -->
+                    </div>
+                </button>
+
+                <!-- 開始/停止 按鈕 -->
+                <button id="startButton" onclick="startStop()"
+                        class="metronome-button w-3/5 py-4 text-xl font-bold rounded-xl bg-green-500 hover:bg-green-600 focus:outline-none focus:ring-4 focus:ring-green-700">
+                    開始
+                </button>
+                <!-- Drum Mode Toggle -->
+                <button id="drumModeToggle" onclick="toggleDrumMode()"
+                        title="切換至鼓模式 (D)"
+                        class="metronome-button w-1/5 py-4 rounded-xl bg-[#4a4768] hover:bg-[#5a577d] focus:outline-none focus:ring-4 focus:ring-[#9a7dff] flex items-center justify-center">
+                    <svg id="drumIcon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-400 transition-colors duration-150">
+                        <path d="m2 2 8 8"/><path d="m22 2-8 8"/><ellipse cx="12" cy="9" rx="10" ry="5"/><path d="M7 13.4v7.9"/><path d="M12 14v8"/><path d="M17 13.4v7.9"/><path d="M2 9v8a10 5 0 0 0 20 0V9"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Tap Tempo 區域 -->
+            <div id="tapTempoArea" 
+                 onclick="handleTap()"
+                 class="p-3 bg-[#4a4768] rounded-xl cursor-pointer hover:bg-[#5a577d] transition-colors mb-4 border border-dashed border-[#6a5acd] active:scale-[0.99] flex-shrink-0">
+                <p class="text-base font-semibold text-gray-200 uppercase tracking-wider">
+                    TAP TEMPO
+                </p>
+                <p id="tapTempoInfo" class="text-xs text-gray-400 mt-1 h-3">
+                    點擊此處或按 [空白鍵] 來偵測節拍
+                </p>
+            </div>
+
+            <!-- 拍數 (Beats per Measure) 控制區 (新增) -->
+            <div class="flex items-center justify-center space-x-4 mb-2 flex-shrink-0">
+                 <button onclick="changeBeats(-1)" class="w-8 h-8 rounded-full bg-[#4a4768] hover:bg-[#5a577d] flex items-center justify-center text-white font-bold transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/></svg>
+                </button>
+                <div class="text-gray-300 font-semibold">
+                    每小節 <span id="beatsDisplay" class="text-[#9a7dff] text-xl mx-1">4</span> 拍
+                </div>
+                <button onclick="changeBeats(1)" class="w-8 h-8 rounded-full bg-[#4a4768] hover:bg-[#5a577d] flex items-center justify-center text-white font-bold transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                </button>
+            </div>
+            
+            <!-- 節拍指示燈 (動態生成) - 關鍵修正: flex-shrink-0 防止被壓縮 -->
+            <div id="beatIndicators" class="flex justify-center flex-wrap gap-3 mt-2 px-2 flex-shrink-0 pb-6">
+                <!-- JS 將會在這裡插入指示燈 -->
+            </div>
+        </div>
+
+        <!-- 卡片 2: 設定與工具 (範例頁面) -->
+        <div id="card-2" class="metronome-card p-6 md:p-8 rounded-xl shadow-2xl text-center flex-shrink-0" style="width: 50%; height: 700px;">
+            <h2 class="text-3xl font-bold text-[#9a7dff] mb-4">設定與工具</h2>
+            <div class="text-gray-400">
+                <p>您可以在此處新增其他功能或設定。</p>
+                <div class="mt-8 p-4 bg-[#4a4768] rounded-lg">
+                    <p class="font-semibold">當前頁面：2 / 2</p>
+                </div>
+            </div>
+        </div>
+
     </div>
 
-    <!-- Tap Tempo 區域 -->
-    <div id="tapTempoArea" 
-         onclick="handleTap()"
-         class="p-3 bg-[#4a4768] rounded-xl cursor-pointer hover:bg-[#5a577d] transition-colors mb-6 border border-dashed border-[#6a5acd] active:scale-[0.99]">
-        <p class="text-base font-semibold text-gray-200 uppercase tracking-wider">
-            TAP TEMPO
-        </p>
-        <p id="tapTempoInfo" class="text-xs text-gray-400 mt-1 h-3">
-            點擊此處或按 [空白鍵] 來偵測節拍
-        </p>
-    </div>
-    
-    <!-- 節拍指示燈 (4/4 拍) -->
-    <div id="beatIndicators" class="flex justify-around mt-6">
-        <div data-beat="1" data-index="0" onclick="toggleSubdivision(0)" class="beat-indicator w-10 h-10 rounded-full bg-gray-600 relative flex items-center justify-center cursor-pointer">
-            <span class="absolute font-bold text-white mode-text">1</span>
-        </div>
-        <div data-beat="2" data-index="1" onclick="toggleSubdivision(1)" class="beat-indicator w-10 h-10 rounded-full bg-gray-600 relative flex items-center justify-center cursor-pointer">
-            <span class="absolute font-bold text-white mode-text">1</span>
-        </div>
-        <div data-beat="3" data-index="2" onclick="toggleSubdivision(2)" class="beat-indicator w-10 h-10 rounded-full bg-gray-600 relative flex items-center justify-center cursor-pointer">
-            <span class="absolute font-bold text-white mode-text">1</span>
-        </div>
-        <div data-beat="4" data-index="3" onclick="toggleSubdivision(3)" class="beat-indicator w-10 h-10 rounded-full bg-gray-600 relative flex items-center justify-center cursor-pointer">
-            <span class="absolute font-bold text-white mode-text">1</span>
-        </div>
+    <!-- 頁面導航圓點 -->
+    <div id="card-dots" class="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2 z-10">
+        <div data-index="0" class="card-dot w-3 h-3 rounded-full bg-white/40 cursor-pointer" onclick="goToCard(0)"></div>
+        <div data-index="1" class="card-dot w-3 h-3 rounded-full bg-white/40 cursor-pointer" onclick="goToCard(1)"></div>
     </div>
 </div>
 
-<!-- 2. 視覺化全螢幕模式 (只顯示 1-4 節拍，每拍固定閃爍一次) -->
+<!-- 視覺化全螢幕模式 (動態生成網格) -->
 <div id="visualizationScreen" 
-     class="hidden fixed inset-0 z-50 p-4 sm:p-8 bg-gray-900/95 cursor-pointer grid grid-cols-2 grid-rows-2 gap-4 sm:gap-8"
+     class="hidden fixed inset-0 z-50 p-4 sm:p-8 bg-gray-900/95 cursor-pointer grid gap-4 sm:gap-8"
      title="點擊任意處退出視覺化模式">
-    
-    <!-- Quadrant 1: 左上 (Beat 1) -->
-    <div data-beat="1" id="visual_1" class="beat-quadrant flex items-center justify-center rounded-xl transition-colors duration-150">
-        <div class="visualization-text-container text-[150px] sm:text-[250px] font-extrabold transition-all duration-75">
-            <span class="beat-number-main text-gray-700 transition-all duration-75 transform scale-100">1</span>
-        </div>
-    </div>
-
-    <!-- Quadrant 2: 右上 (Beat 2) -->
-    <div data-beat="2" id="visual_2" class="beat-quadrant flex items-center justify-center rounded-xl transition-colors duration-150">
-        <div class="visualization-text-container text-[150px] sm:text-[250px] font-extrabold transition-all duration-75">
-            <span class="beat-number-main text-gray-700 transition-all duration-75 transform scale-100">2</span>
-        </div>
-    </div>
-    
-    <!-- Quadrant 4: 左下 (Beat 4) - 位於第三個位置 (網格的左下方) -->
-    <div data-beat="4" id="visual_4" class="beat-quadrant flex items-center justify-center rounded-xl transition-colors duration-150">
-        <div class="visualization-text-container text-[150px] sm:text-[250px] font-extrabold transition-all duration-75">
-            <span class="beat-number-main text-gray-700 transition-all duration-75 transform scale-100">4</span>
-        </div>
-    </div>
-    
-    <!-- Quadrant 3: 右下 (Beat 3) - 位於第四個位置 (網格的右下方) -->
-    <div data-beat="3" id="visual_3" class="beat-quadrant flex items-center justify-center rounded-xl transition-colors duration-150">
-        <div class="visualization-text-container text-[150px] sm:text-[250px] font-extrabold transition-all duration-75">
-            <span class="beat-number-main text-gray-700 transition-all duration-75 transform scale-100">3</span>
-        </div>
-    </div>
+     <!-- JS 將會在這裡插入網格 -->
 </div>
 
 <script type="module">
     // Web Audio API 相關變數
     let audioContext;
     let isPlaying = false;
-    let lookahead = 25.0; // 如何提前排程 (ms)
-    let scheduleAheadTime = 0.1; // 提前排程的秒數 (s)
-    let nextNoteTime = 0.0; // 下一個節拍的時間點
+    let lookahead = 25.0; // ms
+    let scheduleAheadTime = 0.1; // s
+    let nextNoteTime = 0.0; 
 
     // 節拍器狀態變數
     let bpm = 120;
-    let beatsPerMeasure = 4;
-    let currentBeat = 0; // The current beat number (1-4)
-    let isDrumMode = false; // 鼓節奏模式狀態
-    let isVisualizationMode = false; // 視覺化模式狀態
-    let isFullscreenDisabled = false; // 新增: 鎖定全螢幕模式狀態 (false = 自動全螢幕開啟)
+    let beatsPerMeasure = 4; // 可變動的拍數
+    let currentBeat = 0; 
+    let isDrumMode = false; 
+    let isVisualizationMode = false; 
+    let isFullscreenDisabled = false; 
     
-    // 每個節拍的細分模式 (0: 1x, 1: 2x, 2: 4x, 3: 三連音, 4: Mute)
+    // 每個節拍的細分模式
     let beatSubdivisions = new Array(beatsPerMeasure).fill(0); 
 
     // 模式標籤用於 UI 顯示
     const SUBDIVISION_LABELS = {
-        0: `<span class="text-lg font-extrabold relative top-[-1px]">1</span>`, // 1x
-        1: `<span class="text-lg font-extrabold relative top-[-1px]">2</span>`, // 2x (八分音符)
-        2: `<span class="text-lg font-extrabold relative top-[-1px]">4</span>`, // 4x (十六分音符)
-        3: `<span class="text-lg font-extrabold relative top-[-1px]">3</span>`, // 3連音
-        4: `<span class="text-xl font-extrabold text-red-500">M</span>`, // Mute
+        0: `<span class="text-lg font-extrabold relative top-[-1px]">1</span>`, 
+        1: `<span class="text-lg font-extrabold relative top-[-1px]">2</span>`, 
+        2: `<span class="text-lg font-extrabold relative top-[-1px]">4</span>`, 
+        3: `<span class="text-lg font-extrabold relative top-[-1px]">3</span>`, 
+        4: `<span class="text-xl font-extrabold text-red-500">M</span>`, 
     };
     
-    // 鼓模式音色常數
+    // 音色常數
     const DRUM_KICK_FREQ = 80.0;     
     const DRUM_SNARE_FREQ = 200.0;   
     const DRUM_SNARE_DURATION = 0.1; 
-    
-    // 原版節拍器音色常數
     const METRONOME_STRONG_FREQ = 600.0;
     const METRONROME_WEAK_FREQ = 400.0;
     const METRONOME_DURATION = 0.05; 
     const METRONOME_SUB_FREQ = 350.0; 
     const SUBDIVISION_VOLUME_MULTIPLIER = 0.8; 
 
-    // SVG 代碼 (新的全螢幕切換圖示)
-    // Eye Closed (鎖定時顯示，意即關閉自動全螢幕功能)
+    // SVG 代碼
     const SVG_EYE_CLOSED = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-full h-full"><path d="m15 18-.722-3.25"/><path d="M2 8a10.645 10.645 0 0 0 20 0"/><path d="m20 15-1.726-2.05"/><path d="m4 15 1.726-2.05"/><path d="m9 18 .722-3.25"/></svg>`;
-    // Eye Open (解鎖時顯示，意即開啟自動全螢幕功能)
     const SVG_EYE_OPEN = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-full h-full"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>`;
 
-
     // DOM 元素
-    const appContainer = document.getElementById('app');
+    const appWrapper = document.getElementById('app-wrapper');
+    const cardContainer = document.getElementById('card-container');
+    const cardDots = document.querySelectorAll('.card-dot');
+    const numCards = cardDots.length;
+    let currentCardIndex = 0;
+    
     const visualizationScreen = document.getElementById('visualizationScreen');
     const startButton = document.getElementById('startButton');
     const bpmInput = document.getElementById('bpmInput');
     const bpmDisplay = document.getElementById('bpmDisplay');
-    const beatIndicators = Array.from(document.querySelectorAll('.beat-indicator'));
+    const beatIndicatorsContainer = document.getElementById('beatIndicators'); // 容器
+    const beatsDisplay = document.getElementById('beatsDisplay'); // 拍數顯示
     const tapTempoInfo = document.getElementById('tapTempoInfo');
-    const drumModeToggle = document.getElementById('drumModeToggle'); // 修正: 使用正確的 ID
+    const drumModeToggle = document.getElementById('drumModeToggle'); 
     const drumIcon = document.getElementById('drumIcon');
     const fullscreenLockToggle = document.getElementById('fullscreenLockToggle'); 
-    const fullscreenIconContainer = document.getElementById('fullscreenIconContainer'); // 新增: 圖示容器
+    const fullscreenIconContainer = document.getElementById('fullscreenIconContainer'); 
     let intervalTimer = null;
 
-    // 視覺化象限元素參考 (透過 ID 確保正確對應節拍)
-    const visualizationElements = {
-        1: document.getElementById('visual_1'),
-        2: document.getElementById('visual_2'),
-        3: document.getElementById('visual_3'), 
-        4: document.getElementById('visual_4'), 
-    };
-
-    // Tap Tempo 變數
+    // Tap Tempo
     let tapHistory = [];
     const TAP_RESET_THRESHOLD = 2000; 
     
-    // ------------------------------------------
-    // --- 自動全螢幕變數 (Auto Fullscreen) ---
-    // ------------------------------------------
+    // Auto Fullscreen
     let autoFullscreenTimeout = null;
-    const AUTO_FULLSCREEN_DELAY = 3000; // 3 秒
+    const AUTO_FULLSCREEN_DELAY = 3000; 
+
+    // ------------------------------------------
+    // --- 滑動/導航邏輯 ---
+    // ------------------------------------------
+    let isDragging = false;
+    let startX = 0;
+    let currentTranslate = 0;
+    let prevTranslate = 0;
+    const sensitivity = 50; 
+
+    function setCardPosition(index) {
+        currentCardIndex = Math.max(0, Math.min(index, numCards - 1));
+        currentTranslate = currentCardIndex * (-100 / numCards); 
+        cardContainer.style.transform = `translateX(${currentTranslate}%)`;
+        
+        cardDots.forEach((dot, i) => {
+            dot.classList.remove('bg-white');
+            dot.classList.add('bg-white/40');
+            if (i === currentCardIndex) {
+                dot.classList.add('bg-white');
+            }
+        });
+        document.getElementById('prevBtn').style.display = currentCardIndex === 0 ? 'none' : 'block';
+        document.getElementById('nextBtn').style.display = currentCardIndex === numCards - 1 ? 'none' : 'block';
+    }
+
+    window.goToCard = function(index) {
+        cardContainer.style.transition = 'transform 0.3s ease-in-out';
+        setCardPosition(index);
+        setTimeout(() => { cardContainer.style.transition = 'none'; }, 300);
+    }
+    window.nextCard = function() { goToCard(currentCardIndex + 1); }
+    window.prevCard = function() { goToCard(currentCardIndex - 1); }
+
+    function getPositionX(event) {
+        return event.type.includes('mouse') ? event.pageX : event.touches[0].clientX;
+    }
+    function touchStart(event) {
+        isDragging = true;
+        startX = getPositionX(event);
+        prevTranslate = currentTranslate;
+        cardContainer.style.transition = 'none'; 
+    }
+    function touchMove(event) {
+        if (!isDragging) return;
+        const currentX = getPositionX(event);
+        const diff = currentX - startX;
+        const translateAmount = (diff / appWrapper.offsetWidth) * (100 / numCards);
+        currentTranslate = prevTranslate + translateAmount;
+        const maxTranslate = 0;
+        const minTranslate = (numCards - 1) * (-100 / numCards);
+        currentTranslate = Math.max(minTranslate, Math.min(maxTranslate, currentTranslate));
+        cardContainer.style.transform = `translateX(${currentTranslate}%)`;
+    }
+    function touchEnd() {
+        if (!isDragging) return;
+        isDragging = false;
+        const movedBy = currentTranslate - prevTranslate;
+        let targetIndex = currentCardIndex;
+        if (movedBy < -sensitivity) { targetIndex += 1; } 
+        else if (movedBy > sensitivity) { targetIndex -= 1; }
+        cardContainer.style.transition = 'transform 0.3s ease-in-out';
+        setCardPosition(targetIndex);
+    }
+
+    appWrapper.addEventListener('touchstart', touchStart, { passive: true });
+    appWrapper.addEventListener('touchend', touchEnd);
+    appWrapper.addEventListener('touchmove', touchMove, { passive: true });
+    appWrapper.addEventListener('mousedown', touchStart);
+    appWrapper.addEventListener('mouseup', touchEnd);
+    appWrapper.addEventListener('mouseleave', () => { if (isDragging) touchEnd(); });
+    appWrapper.addEventListener('mousemove', touchMove);
+
+    // ------------------------------------------
+    // --- 拍數控制邏輯 ---
+    // ------------------------------------------
+    
+    window.changeBeats = function(delta) {
+        let newBeats = beatsPerMeasure + delta;
+        newBeats = Math.max(1, Math.min(12, newBeats));
+        
+        if (newBeats !== beatsPerMeasure) {
+            beatsPerMeasure = newBeats;
+            
+            if (newBeats > beatSubdivisions.length) {
+                const diff = newBeats - beatSubdivisions.length;
+                for (let i = 0; i < diff; i++) {
+                    beatSubdivisions.push(0);
+                }
+            } else {
+                beatSubdivisions.length = newBeats;
+            }
+            renderUI();
+        }
+    }
 
     /**
-     * 初始化 AudioContext。
+     * 根據當前 beatsPerMeasure 渲染主畫面指示燈與全螢幕網格
      */
+    function renderUI() {
+        beatsDisplay.textContent = beatsPerMeasure;
+        
+        // 1. 渲染主畫面指示燈
+        beatIndicatorsContainer.innerHTML = '';
+        for (let i = 1; i <= beatsPerMeasure; i++) {
+            const indicator = document.createElement('div');
+            // 關鍵修正: 恢復點擊功能
+            indicator.className = `beat-indicator w-12 h-12 rounded-full bg-gray-600 relative flex items-center justify-center cursor-pointer transform scale-100 flex-shrink-0 transition-all duration-100`;
+            indicator.dataset.beat = i;
+            // 這裡綁定點擊事件
+            indicator.onclick = () => window.toggleSubdivision(i - 1);
+            
+            const mode = beatSubdivisions[i-1];
+            const span = document.createElement('span');
+            span.className = 'absolute font-bold text-white mode-text text-lg pointer-events-none'; // pointer-events-none 確保點擊穿透到 div
+            span.innerHTML = SUBDIVISION_LABELS[mode];
+            
+            indicator.appendChild(span);
+            beatIndicatorsContainer.appendChild(indicator);
+        }
+        
+        // 確保標籤狀態正確
+        updateSubdivisionLabels();
+
+        // 2. 渲染全螢幕網格
+        visualizationScreen.innerHTML = '';
+        let cols = Math.ceil(Math.sqrt(beatsPerMeasure));
+        if (beatsPerMeasure === 2) cols = 2; 
+        
+        visualizationScreen.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+        
+        for (let i = 1; i <= beatsPerMeasure; i++) {
+            const quadrant = document.createElement('div');
+            quadrant.className = 'beat-quadrant flex items-center justify-center rounded-xl transition-colors duration-150';
+            quadrant.id = `visual_${i}`;
+            quadrant.dataset.beat = i;
+            
+            const textContainer = document.createElement('div');
+            textContainer.className = 'visualization-text-container text-[100px] sm:text-[200px] font-extrabold transition-all duration-75';
+            if (beatsPerMeasure > 4) textContainer.classList.replace('text-[100px]', 'text-[60px]');
+            if (beatsPerMeasure > 4) textContainer.classList.replace('sm:text-[200px]', 'sm:text-[120px]');
+            
+            const span = document.createElement('span');
+            span.className = 'beat-number-main text-gray-700 transition-all duration-75 transform scale-100';
+            span.textContent = i;
+            
+            textContainer.appendChild(span);
+            quadrant.appendChild(textContainer);
+            visualizationScreen.appendChild(quadrant);
+        }
+    }
+
+
+    // ------------------------------------------
+    // --- 節拍器核心邏輯 ---
+    // ------------------------------------------
+
     function initializeAudio() {
         if (!audioContext) {
             audioContext = new (window.AudioContext || window.webkitAudioContext)();
         }
     }
 
-    /**
-     * 在指定時間播放一個點擊音效。
-     */
     function playClick(time, pitch, duration, volume = 1.0) {
         if (!audioContext) return;
-        
         const oscillator = audioContext.createOscillator();
         oscillator.type = 'sine'; 
         oscillator.frequency.setValueAtTime(pitch, time); 
-
         const gainNode = audioContext.createGain();
         gainNode.gain.setValueAtTime(volume, time); 
         gainNode.gain.exponentialRampToValueAtTime(0.001, time + duration);
-
         oscillator.connect(gainNode);
         gainNode.connect(audioContext.destination);
-
         oscillator.start(time);
         oscillator.stop(time + duration);
     }
 
-    /**
-     * 排程下一個節拍並更新狀態。
-     */
     function scheduler() {
         while (nextNoteTime < audioContext.currentTime + scheduleAheadTime) {
-            
             const secondsPerBeat = 60.0 / bpm;
-            
-            // 每次排程都更新主節拍
             currentBeat = (currentBeat % beatsPerMeasure) + 1;
             const beatIndex = currentBeat - 1; 
             const subdivisionMode = beatSubdivisions[beatIndex]; 
 
-            // 2. 聲音邏輯
             let subdivisionCount = 1; 
-            
-            if (subdivisionMode === 1) subdivisionCount = 2;       // 2x (八分音符)
-            else if (subdivisionMode === 2) subdivisionCount = 4;  // 4x (十六分音符)
-            else if (subdivisionMode === 3) subdivisionCount = 3;  // 3x (三連音)
-            else if (subdivisionMode === 4) subdivisionCount = 0;  // 靜音
+            if (subdivisionMode === 1) subdivisionCount = 2;
+            else if (subdivisionMode === 2) subdivisionCount = 4;
+            else if (subdivisionMode === 3) subdivisionCount = 3;
+            else if (subdivisionMode === 4) subdivisionCount = 0;
 
-            
-            if (subdivisionCount > 0) {
-                const subDuration = secondsPerBeat / subdivisionCount;
+            if (subdivisionCount >= 0) {
+                const subDuration = (subdivisionCount > 0) ? secondsPerBeat / subdivisionCount : secondsPerBeat;
+                const actualSubCount = subdivisionCount > 0 ? subdivisionCount : 1; 
 
-                for (let i = 0; i < subdivisionCount; i++) {
+                for (let i = 0; i < actualSubCount; i++) {
                     const clickTime = nextNoteTime + i * subDuration;
-                    
-                    const subStep = i; // 0 for main beat, 1, 2, 3 for subdivisions
-
-                    // 1. 視覺更新：在每個細分音發出時觸發一次閃爍
+                    const subStep = (subdivisionCount === 0) ? -1 : i; 
                     updateVisuals(currentBeat, subStep, subdivisionMode);
+                    
+                    if (subdivisionCount === 0) continue; 
                     
                     let pitch;
                     let duration;
                     let volumeMultiplier; 
-                    
                     const isMainBeatClick = (i === 0);
 
                     if (isMainBeatClick) {
@@ -373,7 +519,6 @@
                     } else {
                         volumeMultiplier = SUBDIVISION_VOLUME_MULTIPLIER;
                     }
-
 
                     if (isDrumMode) {
                         if (isMainBeatClick) {
@@ -393,121 +538,84 @@
                             pitch = METRONOME_SUB_FREQ; 
                         }
                     }
-                    
                     playClick(clickTime, pitch, duration, volumeMultiplier);
                 }
-            } else {
-                // 如果是靜音模式 (Mode 4)，聲音不發出，但視覺必須閃爍一次。
-                // 傳遞 -1 作為 subStep 以確保視覺化邏輯觸發單次閃爍。
-                updateVisuals(currentBeat, -1, subdivisionMode); 
-            }
-
+            } 
             nextNoteTime += secondsPerBeat;
         }
     }
 
-    /**
-     * 視覺上閃爍當前的節拍指示燈並更新大數字顯示。
-     * @param {number} beat - 當前的節拍數 (1 到 beatsPerMeasure)。
-     * @param {number} subdivisionStep - 當前的細分步數 (0: 主要節拍, 1, 2, 3: 細分步, -1: 靜音節拍)。
-     * @param {number} subdivisionMode - 細分模式 (0=1x, 1=2x, 2=4x, 3=3x, 4=Mute)。
-     */
     function updateVisuals(beat, subdivisionStep, subdivisionMode) {
-        // 計算到播放時間的延遲 (ms)
         const delay = (nextNoteTime - audioContext.currentTime) * 1000;
 
-        // 將視覺更新排程在準確的播放時間
         setTimeout(() => {
-            const animationDuration = 75; // 視覺動畫的持續時間 (ms)
+            const animationDuration = 75; 
             
-            // ---------------------------------
-            // --- 1. 小指示燈邏輯 (只在主拍閃爍) ---
-            // ---------------------------------
-            // 這個邏輯是正確的，只在 subdivisionStep === 0 時觸發閃爍一次。
-            beatIndicators.forEach((indicator, index) => {
-                indicator.classList.remove('bg-[#ff5733]', 'bg-[#ffc300]', 'opacity-100');
+            // 1. 小指示燈邏輯
+            const indicator = document.querySelector(`.beat-indicator[data-beat="${beat}"]`);
+            
+            // 重置所有指示燈顏色
+            beatIndicatorsContainer.querySelectorAll('.beat-indicator').forEach((ind, index) => {
+                ind.classList.remove('bg-[#ff5733]', 'bg-[#ffc300]', 'scale-110');
                 if (beatSubdivisions[index] !== 4) { 
-                    indicator.classList.remove('bg-gray-900', 'opacity-50');
-                    indicator.classList.add('bg-gray-600');
+                    ind.classList.remove('bg-gray-900', 'opacity-50');
+                    ind.classList.add('bg-gray-600');
+                } else {
+                    // Mute 狀態
+                     ind.classList.remove('bg-gray-600');
+                     ind.classList.add('bg-gray-900', 'opacity-50');
                 }
             });
-
-            // 點亮當前節拍的小指示燈
-            const indicator = document.querySelector(`.beat-indicator[data-beat="${beat}"]`);
-            const beatIndex = beat - 1;
             
-            if (indicator && subdivisionStep === 0) { // 只在主節拍 (subdivisionStep === 0) 點亮小指示燈
+            if (indicator && subdivisionStep === 0) { 
                 const colorClass = (beat === 1) ? 'bg-[#ff5733]' : 'bg-[#ffc300]';
-
-                if (beatSubdivisions[beatIndex] !== 4) { 
+                if (subdivisionMode !== 4) { 
                     indicator.classList.remove('bg-gray-600');
-                    indicator.classList.add(colorClass, 'opacity-100');
+                    indicator.classList.add(colorClass, 'scale-110'); // 閃爍
                 }
             }
             
-            // ------------------------------------
-            // --- 2. 全螢幕四象限視覺化邏輯 (每拍固定閃爍一次) ---
-            // ------------------------------------
+            // 2. 全螢幕視覺化邏輯
             if (isVisualizationMode) {
                 const allQuadrants = document.querySelectorAll('.beat-quadrant');
-                
-                // 判斷是否為主要閃爍事件 (即每拍的開始，包含靜音拍)
                 const isMainFlash = subdivisionStep === 0 || subdivisionStep === -1; 
                 
-                if (isMainFlash) { // 只有在主要節拍事件發生時才閃爍
-                    
-                    // --- A. 重置所有元素 (修正: 只在主拍時重置，避免細分拍導致閃爍被立即取消) ---
-                    // 重置所有文字顏色和縮放 (用於熄滅上一拍或細分拍的視覺效果)
+                if (isMainFlash) { 
                     document.querySelectorAll('.beat-number-main').forEach(textEl => {
                         textEl.classList.remove('text-white', 'scale-105', 'text-red-400', 'text-[#9a7dff]');
                         textEl.classList.add('text-gray-700');
                     });
-                    
-                    // 重置所有象限背景
                     allQuadrants.forEach(quadrant => {
                         quadrant.classList.remove('bg-[#4a4768]'); 
                     });
                     
-                    // --- B. 觸發當前拍的閃爍 ---
-                    const currentElement = visualizationElements[beat];
+                    const currentElement = document.getElementById(`visual_${beat}`);
                     if (currentElement) {
                         const numberColor = (beat === 1) ? 'text-red-400' : 'text-[#9a7dff]';
                         const mainNumber = currentElement.querySelector('.beat-number-main');
                         
-                        // 1. 點亮象限背景
                         currentElement.classList.add('bg-[#4a4768]'); 
 
-                        // 2. 點亮主數字 (這是閃爍的動作)
                         if (mainNumber) {
                             mainNumber.classList.remove('text-gray-700');
                             mainNumber.classList.add('text-white', numberColor, 'scale-105');
-                            
-                            // 排程重置縮放動畫 (閃爍 OFF)
                             setTimeout(() => {
                                 mainNumber.classList.remove('scale-105'); 
                             }, animationDuration); 
                         }
                     }
                 }
-                // 如果 subdivisionStep > 0 (細分拍)，則不做任何事，實現單次閃爍
             }
         }, delay > 0 ? delay : 0);
     }
 
-    /**
-     * 顯示全螢幕視覺化模式
-     */
     function showVisualization() {
-        // 檢查是否鎖定全螢幕，如果是，則直接返回
         if (!isPlaying || isFullscreenDisabled) return; 
-        
-        clearTimeout(autoFullscreenTimeout); // 進入視覺化時清除計時器
-        
+        clearTimeout(autoFullscreenTimeout); 
         isVisualizationMode = true;
-        appContainer.classList.add('hidden');
+        appWrapper.classList.add('hidden'); 
         visualizationScreen.classList.remove('hidden');
         
-        // 確保初始狀態是暗的
         document.querySelectorAll('.beat-number-main').forEach(textEl => {
             textEl.classList.remove('text-white', 'scale-105', 'text-red-400', 'text-[#9a7dff]');
             textEl.classList.add('text-gray-700');
@@ -517,15 +625,10 @@
         });
     }
 
-    /**
-     * 隱藏全螢幕視覺化模式
-     */
-    function hideVisualization() {
+    window.hideVisualization = function() {
         isVisualizationMode = false;
         visualizationScreen.classList.add('hidden');
-        appContainer.classList.remove('hidden');
-
-        // 重置所有象限狀態 (暗下來)
+        appWrapper.classList.remove('hidden'); 
         document.querySelectorAll('.beat-number-main').forEach(textEl => {
             textEl.classList.remove('text-white', 'scale-105', 'text-red-400', 'text-[#9a7dff]');
             textEl.classList.add('text-gray-700');
@@ -533,196 +636,126 @@
         document.querySelectorAll('.beat-quadrant').forEach(quadrant => {
             quadrant.classList.remove('bg-[#4a4768]');
         });
-        
-        // ------------------------------------------
-        // --- 設定自動全螢幕計時器 ---
-        // ------------------------------------------
-        // 只有在未鎖定全螢幕時才設定自動切換計時器
         if (isPlaying && !isFullscreenDisabled) {
-            clearTimeout(autoFullscreenTimeout); // 清除任何先前的計時器
+            clearTimeout(autoFullscreenTimeout); 
             autoFullscreenTimeout = setTimeout(() => {
                 showVisualization();
             }, AUTO_FULLSCREEN_DELAY); 
         }
     }
 
-    /**
-     * 切換全螢幕鎖定模式。
-     */
     window.toggleFullscreenLock = function() {
         isFullscreenDisabled = !isFullscreenDisabled;
-
         if (isFullscreenDisabled) {
-            // 鎖定狀態：Auto Fullscreen OFF (Active State)
-            // 顯示 Eye Closed (🔒 閉眼：表示功能被鎖定，不會切換)
             fullscreenIconContainer.innerHTML = SVG_EYE_CLOSED; 
             fullscreenIconContainer.classList.remove('text-gray-400'); 
-            fullscreenIconContainer.classList.add('text-[#9a7dff]'); // 使用主色表示已鎖定
+            fullscreenIconContainer.classList.add('text-[#9a7dff]'); 
             fullscreenLockToggle.classList.remove('bg-[#4a4768]');
             fullscreenLockToggle.classList.add('bg-[#6a5acd]'); 
             fullscreenLockToggle.title = '解鎖自動全螢幕 (F)';
-            
             clearTimeout(autoFullscreenTimeout); 
-            
-            if (isVisualizationMode) {
-                hideVisualization();
-            }
+            if (isVisualizationMode) hideVisualization();
         } else {
-            // 解鎖狀態：Auto Fullscreen ON (Inactive/Default State)
-            // 顯示 Eye Open (👁️ 開眼：表示功能開啟，允許自動切換)
             fullscreenIconContainer.innerHTML = SVG_EYE_OPEN; 
             fullscreenIconContainer.classList.remove('text-[#9a7dff]'); 
-            fullscreenIconContainer.classList.add('text-gray-400'); // 使用灰色表示未鎖定 (自動模式)
+            fullscreenIconContainer.classList.add('text-gray-400'); 
             fullscreenLockToggle.classList.remove('bg-[#6a5acd]');
             fullscreenLockToggle.classList.add('bg-[#4a4768]');
             fullscreenLockToggle.title = '鎖定自動全螢幕 (F)';
-
-            if (isPlaying) {
-                hideVisualization(); 
-            }
+            if (isPlaying) hideVisualization(); 
         }
     }
 
+    visualizationScreen.addEventListener('click', () => { hideVisualization(); });
 
-    // 點擊全螢幕時，退出視覺化模式
-    visualizationScreen.addEventListener('click', () => {
-        hideVisualization();
-    });
-
-    /**
-     * 開始或停止節拍器。
-     */
     window.startStop = function() {
         initializeAudio();
-
         if (isPlaying) {
-            // 停止
             clearInterval(intervalTimer);
             isPlaying = false;
-            hideVisualization(); // 如果在視覺化模式，退出 (這會清除計時器)
-            clearTimeout(autoFullscreenTimeout); // 停止時清除計時器
-            
+            hideVisualization(); 
+            clearTimeout(autoFullscreenTimeout); 
             startButton.textContent = '開始';
             startButton.classList.remove('bg-red-500', 'hover:bg-red-600', 'focus:ring-red-700');
             startButton.classList.add('bg-green-500', 'hover:bg-green-600', 'focus:ring-green-700');
             
-            // 重置視覺指示燈顏色
-            beatIndicators.forEach((indicator, index) => {
-                indicator.classList.remove('bg-[#ff5733]', 'bg-[#ffc300]', 'opacity-100');
+            // 重置顏色
+            beatIndicatorsContainer.querySelectorAll('.beat-indicator').forEach((ind, index) => {
+                ind.classList.remove('bg-[#ff5733]', 'bg-[#ffc300]', 'scale-110');
                 if (beatSubdivisions[index] !== 4) {
-                    indicator.classList.add('bg-gray-600');
-                    indicator.classList.remove('bg-gray-900', 'opacity-50');
+                    ind.classList.add('bg-gray-600');
+                    ind.classList.remove('bg-gray-900', 'opacity-50');
                 } else {
-                    indicator.classList.add('bg-gray-900', 'opacity-50');
-                    indicator.classList.remove('bg-gray-600');
+                     ind.classList.add('bg-gray-900', 'opacity-50');
+                     ind.classList.remove('bg-gray-600');
                 }
             });
             
             currentBeat = 0;
-
         } else {
-            // 開始
-            if (audioContext.state === 'suspended') {
-                audioContext.resume();
-            }
-            
+            if (audioContext.state === 'suspended') { audioContext.resume(); }
             isPlaying = true;
             startButton.textContent = '停止';
             startButton.classList.remove('bg-green-500', 'hover:bg-green-600', 'focus:ring-green-700');
             startButton.classList.add('bg-red-500', 'hover:bg-red-600', 'focus:ring-red-700');
-
             currentBeat = 0;
             nextNoteTime = audioContext.currentTime;
-            
-            // 啟動排程器間隔
+            if (!isFullscreenDisabled) { setTimeout(showVisualization, 1000); }
             intervalTimer = setInterval(scheduler, lookahead);
-
-            // 1秒後嘗試切換到視覺化畫面 (如果未鎖定)
-            if (!isFullscreenDisabled) {
-                setTimeout(showVisualization, 1000);
-            }
         }
     }
 
-    /**
-     * 更新 BPM 值並將其限制在合理範圍。
-     */
     window.updateBPM = function(newBPM) {
         const parsedBPM = parseInt(newBPM, 10);
         if (isNaN(parsedBPM)) return;
-
         let clampedBPM = Math.max(40, Math.min(240, parsedBPM));
         bpm = clampedBPM;
-        
         bpmDisplay.textContent = bpm;
         bpmInput.value = bpm;
     }
 
-    /**
-     * 透過按鈕改變 BPM。
-     */
     window.changeBPM = function(delta) {
         let newBPM = bpm + delta;
         updateBPM(newBPM);
     }
 
-    /**
-     * 處理滑鼠點擊或空白鍵按下事件來計算節拍速度 (Tap Tempo)。
-     */
     window.handleTap = function() {
         const now = Date.now();
         let calculatedBPM = null;
         let infoMessage = '點擊此處或按 [空白鍵] 來偵測節拍';
-
         if (tapHistory.length > 0) {
             const lastTap = tapHistory[tapHistory.length - 1];
             const interval = now - lastTap;
-
             if (interval > TAP_RESET_THRESHOLD) {
                 tapHistory = [now]; 
                 infoMessage = "偵測開始... (已重置)";
                 tapTempoInfo.textContent = infoMessage;
                 return;
             }
-
             tapHistory.push(now);
-
-            if (tapHistory.length > 8) {
-                tapHistory.shift();
-            }
-
+            if (tapHistory.length > 8) { tapHistory.shift(); }
             if (tapHistory.length >= 2) {
                 let totalInterval = 0;
                 for (let i = 1; i < tapHistory.length; i++) {
                     totalInterval += tapHistory[i] - tapHistory[i - 1];
                 }
-
                 const averageInterval = totalInterval / (tapHistory.length - 1);
                 calculatedBPM = Math.round(60000 / averageInterval);
-
                 infoMessage = `最近 ${tapHistory.length - 1} 次間隔的平均 BPM：${calculatedBPM}`;
             }
-            
         } else {
             tapHistory.push(now);
             infoMessage = "偵測開始... (請點擊第二次)";
         }
-
         if (calculatedBPM !== null) {
             const clampedBPM = Math.max(40, Math.min(240, calculatedBPM));
             updateBPM(clampedBPM);
         }
-        
         tapTempoInfo.textContent = infoMessage;
     };
 
-
-    /**
-     * 切換鼓節奏模式。
-     */
     window.toggleDrumMode = function() {
         isDrumMode = !isDrumMode;
-
         if (isDrumMode) {
             drumIcon.classList.remove('text-gray-400');
             drumIcon.classList.add('text-[#ffc300]'); 
@@ -736,51 +769,35 @@
             drumModeToggle.classList.add('bg-[#4a4768]');
             drumModeToggle.title = '切換至鼓模式 (D)';
         }
-
-        if (isPlaying) {
-            // 重啟以應用新的音色邏輯
-            window.startStop(); 
-            window.startStop(); 
-        }
+        if (isPlaying) { window.startStop(); window.startStop(); }
     }
 
-    /**
-     * 點擊節拍指示燈以循環切換細分模式。
-     */
+    function updateSubdivisionLabels() {
+        const indicators = document.querySelectorAll('.beat-indicator');
+        indicators.forEach((indicator, index) => {
+            if (index >= beatSubdivisions.length) return; 
+            const mode = beatSubdivisions[index];
+            const modeTextSpan = indicator.querySelector('.mode-text');
+            indicator.classList.remove('bg-gray-900', 'opacity-50');
+            indicator.classList.add('bg-gray-600');
+            if (modeTextSpan) modeTextSpan.innerHTML = SUBDIVISION_LABELS[mode];
+            if (mode === 4) {
+                indicator.classList.remove('bg-gray-600');
+                indicator.classList.add('bg-gray-900', 'opacity-50');
+            }
+        });
+    }
+
     window.toggleSubdivision = function(beatIndex) {
         initializeAudio(); 
-
         let currentMode = beatSubdivisions[beatIndex];
         let newMode = (currentMode + 1) % 5; 
-
         beatSubdivisions[beatIndex] = newMode;
-        
-        const indicator = beatIndicators[beatIndex];
-        const modeTextSpan = indicator.querySelector('.mode-text');
-        
-        modeTextSpan.innerHTML = SUBDIVISION_LABELS[newMode];
-
-        if (newMode === 4) {
-             indicator.classList.remove('bg-gray-600', 'bg-[#ff5733]', 'bg-[#ffc300]');
-             indicator.classList.add('bg-gray-900', 'opacity-50');
-        } else {
-             indicator.classList.remove('bg-gray-900', 'opacity-50');
-             indicator.classList.add('bg-gray-600');
-        }
-        
-        if (isPlaying) {
-            // 重啟以應用新的細分邏輯 (因為 scheduler 需要重新計算)
-            window.startStop(); 
-            window.startStop(); 
-        }
+        updateSubdivisionLabels();
+        if (isPlaying) { window.startStop(); window.startStop(); }
     };
 
-
-    // ------------------------------------------
-    // --- 啟用自動全螢幕重啟的滑鼠移動監聽 ---
-    // ------------------------------------------
-    appContainer.addEventListener('mousemove', () => {
-        // 只有在播放中、不在視覺化模式、且未鎖定全螢幕時，才重設計時器
+    appWrapper.addEventListener('mousemove', () => {
         if (isPlaying && !isVisualizationMode && !isFullscreenDisabled) {
             clearTimeout(autoFullscreenTimeout);
             autoFullscreenTimeout = setTimeout(() => {
@@ -789,59 +806,40 @@
         }
     });
 
-
-    // 鍵盤事件監聽器 (處理空白鍵 (Tap Tempo), D 鍵 (Drum Mode), F 鍵 (Fullscreen Lock))
     document.addEventListener('keydown', (event) => {
-        // 如果在輸入框中，則跳過
-        if (event.target.tagName === 'INPUT') {
-            return;
-        }
-        
-        // 如果在視覺化模式下，任何按鍵行為都等於點擊，退出視覺化
+        if (event.target.tagName === 'INPUT') return;
         if (isVisualizationMode && event.code !== 'Space' && event.code !== 'KeyD' && event.code !== 'KeyF') {
             event.preventDefault();
             hideVisualization();
             return;
         }
-
         if (event.code === 'Space') {
             event.preventDefault(); 
             handleTap();
         } else if (event.code === 'KeyD') {
             event.preventDefault(); 
             toggleDrumMode();
-        } else if (event.code === 'KeyF') { // 新增 F 鍵
+        } else if (event.code === 'KeyF') {
             event.preventDefault(); 
             toggleFullscreenLock();
         }
     });
 
-
-    // 初始載入時設定 BPM 顯示、細分模式顯示、以及全螢幕鎖定狀態
     document.addEventListener('DOMContentLoaded', () => {
         updateBPM(bpm);
         drumModeToggle.title = '切換至鼓模式 (D)';
-        
-        // 確保 isFullscreenDisabled 預設為 false (自動全螢幕 ON)
         isFullscreenDisabled = false;
-        
-        // 初始設定為「解鎖」狀態 (現在顯示 Eye Open)
         fullscreenIconContainer.innerHTML = SVG_EYE_OPEN; 
         fullscreenIconContainer.classList.remove('text-[#9a7dff]'); 
         fullscreenIconContainer.classList.add('text-gray-400'); 
         fullscreenLockToggle.classList.remove('bg-[#6a5acd]');
         fullscreenLockToggle.classList.add('bg-[#4a4768]');
         fullscreenLockToggle.title = '鎖定自動全螢幕 (F)';
-
-
-        beatIndicators.forEach((indicator, index) => {
-            const modeTextSpan = indicator.querySelector('.mode-text');
-            if (modeTextSpan) {
-                modeTextSpan.innerHTML = SUBDIVISION_LABELS[beatSubdivisions[index]];
-            }
-        });
+        
+        // 初始渲染 UI (Beat indicators)
+        renderUI();
+        setCardPosition(0);
     });
-
 </script>
 
 </body>
