@@ -132,31 +132,21 @@
         <div id="card-1" class="metronome-card p-6 md:p-8 rounded-xl shadow-2xl text-center flex-shrink-0 flex flex-col justify-start" style="width: 50%; height: 800px;">
             
             <!-- 標題 -->
-            <h1 class="text-3xl font-extrabold mb-8 text-[#9a7dff] flex-shrink-0 mt-2">
+            <h1 class="text-3xl font-extrabold mb-12 text-[#9a7dff] flex-shrink-0 mt-4">
                 🎵 數位節拍器
             </h1>
 
-            <!-- 節拍顯示區 -->
-            <div class="mb-8 flex-shrink-0">
-                <span id="bpmDisplay" class="text-8xl font-mono font-bold text-white transition-colors duration-200">
-                    120
-                </span>
-                <div class="text-xl text-gray-400 mt-2 font-medium">
-                    BPM
-                </div>
-            </div>
-
-            <!-- BPM 控制區 -->
-            <div class="flex items-center justify-center space-x-8 mb-10 flex-shrink-0">
+            <!-- BPM 控制區 (放大且置中) -->
+            <div class="flex items-center justify-center space-x-6 mb-12 flex-shrink-0">
                 <!-- 減少 BPM 按鈕 -->
                 <button onclick="changeBPM(-1)" class="metronome-button bg-[#6a5acd] hover:bg-[#5a4ba5] p-4 rounded-full text-3xl font-bold w-16 h-16 flex items-center justify-center">
                     −
                 </button>
                 
-                <!-- BPM 輸入框 -->
+                <!-- BPM 輸入框 (放大字體與寬度) -->
                 <input type="number" id="bpmInput" value="120" min="40" max="240"
                        onchange="updateBPM(this.value)"
-                       class="w-32 text-center text-4xl font-bold bg-[#4a4768] p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#9a7dff] transition-all duration-150 border border-[#6a5acd]">
+                       class="w-48 text-center text-6xl font-bold bg-[#4a4768] p-4 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#9a7dff] transition-all duration-150 border border-[#6a5acd]">
 
                 <!-- 增加 BPM 按鈕 -->
                 <button onclick="changeBPM(1)" class="metronome-button bg-[#6a5acd] hover:bg-[#5a4ba5] p-4 rounded-full text-3xl font-bold w-16 h-16 flex items-center justify-center">
@@ -165,7 +155,7 @@
             </div>
 
             <!-- 按鈕容器: Fullscreen Lock, Start/Stop & Drum Toggle -->
-            <div class="flex space-x-3 mb-10 justify-center flex-shrink-0 w-full">
+            <div class="flex space-x-3 mb-8 justify-center flex-shrink-0 w-full">
                 <!-- 鎖定全螢幕按鈕 -->
                 <button id="fullscreenLockToggle" onclick="toggleFullscreenLock()"
                         title="鎖定自動全螢幕 (F)"
@@ -190,50 +180,50 @@
                 </button>
             </div>
 
-            <!-- 歌曲切換控制列 -->
+            <!-- 歌曲切換控制列 (在開始按鈕下方) -->
             <div class="flex items-center justify-between bg-[#4a4768] rounded-lg p-3 mb-8 shadow-md w-full flex-shrink-0">
-                <button onclick="prevSong()" class="text-gray-300 hover:text-white p-2 active:scale-95 transition-transform">
+                <button onclick="prevSong()" class="text-gray-300 hover:text-white p-2 active:scale-95 transition-transform flex-shrink-0">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
                 </button>
-                <div class="flex flex-col items-center overflow-hidden px-2">
-                    <span id="currentSongTitle" class="text-white font-bold text-lg truncate w-full max-w-[180px]">未選擇歌曲</span>
+                <div class="flex flex-col items-center overflow-hidden px-2 flex-grow min-w-0">
+                    <span id="currentSongTitle" class="text-white font-bold text-lg truncate w-full text-center">未選擇歌曲</span>
                     <span id="currentSongBPMInfo" class="text-xs text-gray-400">--- BPM</span>
                 </div>
-                <button onclick="nextSong()" class="text-gray-300 hover:text-white p-2 active:scale-95 transition-transform">
+                <button onclick="nextSong()" class="text-gray-300 hover:text-white p-2 active:scale-95 transition-transform flex-shrink-0">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
                 </button>
             </div>
 
-            <!-- Tap Tempo & 拍數控制區 (合併一行) -->
-            <div class="flex items-center justify-between w-full mb-8 space-x-4 flex-shrink-0">
+            <!-- Tap Tempo & 拍數控制區 -->
+            <div class="flex items-stretch justify-between w-full mb-8 space-x-3 flex-shrink-0">
                 <!-- Tap Tempo -->
                 <div id="tapTempoArea" 
                      onclick="handleTap()"
-                     class="flex-1 p-4 bg-[#4a4768] rounded-xl cursor-pointer hover:bg-[#5a577d] transition-colors border border-dashed border-[#6a5acd] active:scale-[0.99] flex flex-col items-center justify-center h-24">
+                     class="flex-1 p-2 bg-[#4a4768] rounded-xl cursor-pointer hover:bg-[#5a577d] transition-colors border border-dashed border-[#6a5acd] active:scale-[0.99] flex flex-col items-center justify-center min-h-[80px]">
                     <p class="text-base font-semibold text-gray-200 uppercase tracking-wider">
                         TAP
                     </p>
-                    <p id="tapTempoInfo" class="text-xs text-gray-400 mt-1 text-center leading-tight">
+                    <p id="tapTempoInfo" class="text-[10px] text-gray-400 mt-1 text-center leading-tight">
                         偵測節拍
                     </p>
                 </div>
 
                 <!-- 拍數控制 -->
-                <div class="flex-1 p-4 bg-[#252340] rounded-xl border border-[#4a4768] flex flex-col items-center justify-center h-24">
-                    <div class="text-xs text-gray-400 mb-1 uppercase tracking-wider">每小節拍數</div>
+                <div class="flex-1 p-2 bg-[#252340] rounded-xl border border-[#4a4768] flex flex-col items-center justify-center min-h-[80px]">
+                    <div class="text-[10px] text-gray-400 mb-1 uppercase tracking-wider">Beats</div>
                     <div class="flex items-center justify-between w-full px-2">
-                        <button onclick="changeBeats(-1)" class="text-white hover:text-[#9a7dff] p-1 active:scale-95 transition-transform">
+                        <button onclick="changeBeats(-1)" class="text-white hover:text-[#9a7dff] p-2 active:scale-95 transition-transform">
                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/></svg>
                         </button>
                         <span id="beatsDisplay" class="text-[#9a7dff] text-3xl font-bold">4</span>
-                        <button onclick="changeBeats(1)" class="text-white hover:text-[#9a7dff] p-1 active:scale-95 transition-transform">
+                        <button onclick="changeBeats(1)" class="text-white hover:text-[#9a7dff] p-2 active:scale-95 transition-transform">
                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
                         </button>
                     </div>
                 </div>
             </div>
             
-            <!-- 節拍指示燈 (動態生成) -->
+            <!-- 節拍指示燈 -->
             <div id="beatIndicators" class="flex justify-center flex-wrap gap-4 mt-2 px-2 flex-shrink-0 pb-8">
                 <!-- JS 將會在這裡插入指示燈 -->
             </div>
@@ -340,7 +330,6 @@
     const visualizationScreen = document.getElementById('visualizationScreen');
     const startButton = document.getElementById('startButton');
     const bpmInput = document.getElementById('bpmInput');
-    const bpmDisplay = document.getElementById('bpmDisplay');
     const beatIndicatorsContainer = document.getElementById('beatIndicators');
     const beatsDisplay = document.getElementById('beatsDisplay');
     const tapTempoInfo = document.getElementById('tapTempoInfo');
@@ -871,7 +860,6 @@
         if (isNaN(parsedBPM)) return;
         let clampedBPM = Math.max(40, Math.min(240, parsedBPM));
         bpm = clampedBPM;
-        bpmDisplay.textContent = bpm;
         bpmInput.value = bpm;
     }
 
