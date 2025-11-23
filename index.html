@@ -136,17 +136,19 @@
                 🎵 數位節拍器
             </h1>
 
-            <!-- BPM 控制區 (放大且置中) -->
+            <!-- 已移除 BPM 顯示區 (bpmDisplay) -->
+
+            <!-- BPM 控制區 -->
             <div class="flex items-center justify-center space-x-6 mb-12 flex-shrink-0">
                 <!-- 減少 BPM 按鈕 -->
                 <button onclick="changeBPM(-1)" class="metronome-button bg-[#6a5acd] hover:bg-[#5a4ba5] p-4 rounded-full text-3xl font-bold w-16 h-16 flex items-center justify-center">
                     −
                 </button>
                 
-                <!-- BPM 輸入框 (放大字體與寬度) -->
+                <!-- BPM 輸入框 (放大) -->
                 <input type="number" id="bpmInput" value="120" min="40" max="240"
                        onchange="updateBPM(this.value)"
-                       class="w-48 text-center text-6xl font-bold bg-[#4a4768] p-4 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#9a7dff] transition-all duration-150 border border-[#6a5acd]">
+                       class="w-40 text-center text-6xl font-bold bg-[#4a4768] p-5 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#9a7dff] transition-all duration-150 border border-[#6a5acd]">
 
                 <!-- 增加 BPM 按鈕 -->
                 <button onclick="changeBPM(1)" class="metronome-button bg-[#6a5acd] hover:bg-[#5a4ba5] p-4 rounded-full text-3xl font-bold w-16 h-16 flex items-center justify-center">
@@ -180,7 +182,7 @@
                 </button>
             </div>
 
-            <!-- 歌曲切換控制列 (在開始按鈕下方) -->
+            <!-- 歌曲切換控制列 -->
             <div class="flex items-center justify-between bg-[#4a4768] rounded-lg p-3 mb-8 shadow-md w-full flex-shrink-0">
                 <button onclick="prevSong()" class="text-gray-300 hover:text-white p-2 active:scale-95 transition-transform flex-shrink-0">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
@@ -194,9 +196,9 @@
                 </button>
             </div>
 
-            <!-- Tap Tempo & 拍數控制區 -->
+            <!-- Tap Tempo & 拍數控制區 (合併並排) -->
             <div class="flex items-stretch justify-between w-full mb-8 space-x-3 flex-shrink-0">
-                <!-- Tap Tempo -->
+                <!-- Tap Tempo (50%) -->
                 <div id="tapTempoArea" 
                      onclick="handleTap()"
                      class="flex-1 p-2 bg-[#4a4768] rounded-xl cursor-pointer hover:bg-[#5a577d] transition-colors border border-dashed border-[#6a5acd] active:scale-[0.99] flex flex-col items-center justify-center min-h-[80px]">
@@ -208,7 +210,7 @@
                     </p>
                 </div>
 
-                <!-- 拍數控制 -->
+                <!-- 拍數控制 (50%) -->
                 <div class="flex-1 p-2 bg-[#252340] rounded-xl border border-[#4a4768] flex flex-col items-center justify-center min-h-[80px]">
                     <div class="text-[10px] text-gray-400 mb-1 uppercase tracking-wider">Beats</div>
                     <div class="flex items-center justify-between w-full px-2">
@@ -224,7 +226,7 @@
             </div>
             
             <!-- 節拍指示燈 -->
-            <div id="beatIndicators" class="flex justify-center flex-wrap gap-4 mt-2 px-2 flex-shrink-0 pb-8">
+            <div id="beatIndicators" class="flex justify-center flex-wrap gap-2 sm:gap-4 mt-2 px-2 flex-shrink-0 pb-8">
                 <!-- JS 將會在這裡插入指示燈 -->
             </div>
         </div>
@@ -330,6 +332,7 @@
     const visualizationScreen = document.getElementById('visualizationScreen');
     const startButton = document.getElementById('startButton');
     const bpmInput = document.getElementById('bpmInput');
+    // const bpmDisplay = document.getElementById('bpmDisplay'); // 已移除，防止 JS 錯誤
     const beatIndicatorsContainer = document.getElementById('beatIndicators');
     const beatsDisplay = document.getElementById('beatsDisplay');
     const tapTempoInfo = document.getElementById('tapTempoInfo');
@@ -588,16 +591,21 @@
         beatIndicatorsContainer.innerHTML = '';
         for (let i = 1; i <= beatsPerMeasure; i++) {
             const indicator = document.createElement('div');
-            indicator.className = `beat-indicator w-14 h-14 rounded-full bg-gray-600 relative flex items-center justify-center cursor-pointer transform scale-100 flex-shrink-0 transition-all duration-100`;
+            // 使用 Tailwind 的響應式前綴 sm: 來區分手機和桌面
+            indicator.className = `beat-indicator w-10 h-10 sm:w-14 sm:h-14 rounded-full bg-gray-600 relative flex items-center justify-center cursor-pointer transform scale-100 flex-shrink-0 transition-all duration-100`;
             indicator.dataset.beat = i;
             indicator.onclick = () => window.toggleSubdivision(i - 1);
             const mode = beatSubdivisions[i-1];
             const span = document.createElement('span');
-            span.className = 'absolute font-bold text-white mode-text text-xl pointer-events-none'; 
+            span.className = 'absolute font-bold text-white mode-text text-lg sm:text-xl pointer-events-none'; 
             span.innerHTML = SUBDIVISION_LABELS[mode];
             indicator.appendChild(span);
             beatIndicatorsContainer.appendChild(indicator);
         }
+        
+        // 更新外層容器的 gap
+        beatIndicatorsContainer.className = "flex justify-center flex-wrap gap-2 sm:gap-4 mt-2 px-2 flex-shrink-0 pb-8";
+
         updateSubdivisionLabels();
         visualizationScreen.innerHTML = '';
         let cols = Math.ceil(Math.sqrt(beatsPerMeasure));
@@ -860,6 +868,7 @@
         if (isNaN(parsedBPM)) return;
         let clampedBPM = Math.max(40, Math.min(240, parsedBPM));
         bpm = clampedBPM;
+        // removed bpmDisplay update
         bpmInput.value = bpm;
     }
 
